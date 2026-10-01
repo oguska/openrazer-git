@@ -1,0 +1,13 @@
+diff --git a/Makefile b/Makefile
+index 565a41e7..46697029 100644
+--- a/Makefile
++++ b/Makefile
+@@ -35,7 +35,7 @@ all: driver
+ driver:
+ 	@echo -e "\n::\033[32m Compiling OpenRazer kernel modules\033[0m"
+ 	@echo "========================================"
+-	$(MAKE) -C $(KERNELDIR) M=$(DRIVERDIR) modules
++	$(MAKE) -C $(KERNELDIR) M=$(DRIVERDIR) $(if $(shell grep -s '^CONFIG_CC_IS_CLANG=y' $(KERNELDIR)/.config),LLVM=1) modules
+ 
+ driver_clean:
+ 	@echo -e "\n::\033[32m Cleaning OpenRazer kernel modules\033[0m"
