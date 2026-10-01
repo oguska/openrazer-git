@@ -1,0 +1,327 @@
+From e6ba767751191c05129fe89971ca3f4ed6b82d53 Mon Sep 17 00:00:00 2001
+From: alex-PT78 <alex@example.com>
+Date: Sat, 12 Sep 2026 22:45:08 +0100
+Subject: [PATCH] Add Razer Huntsman V3 X TKL (02B1) support, rebased on
+ upstream v3.12.1
+
+- Add USB ID 0x02B1 in razerkbd_driver.h, udev, README
+- Mirror BlackWidow V4 X protocol (report 0x02, 0x1F/0x3F/0xFF as appropriate)
+- Fix game_led_state fallthrough bug (uninitialized request)
+- Fix daemon EVENT_FILE_REGEX NK/TKL -> Tenkeyless, add optional if01
+- Use _RippleKeyboard with full METHODS (wheel/game/macro/ripple) and WAVE_DIRS
+- MATRIX_DIMS [6,18] for TKL layout
+- Add fake driver cfg for tests
+---
+ README.md                                     |  1 +
+ daemon/openrazer_daemon/hardware/keyboards.py | 22 ++++++++++++++-
+ driver/razerkbd_driver.c                      | 27 +++++++++++++++++++
+ driver/razerkbd_driver.h                      |  1 +
+ install_files/udev/99-razer.rules             |  2 +-
+ .../_fake_driver/razerhuntsmanv3xtkl.cfg      | 25 +++++++++++++++++
+ 6 files changed, 76 insertions(+), 2 deletions(-)
+ create mode 100644 pylib/openrazer/_fake_driver/razerhuntsmanv3xtkl.cfg
+
+diff --git a/README.md b/README.md
+index b1a12da23..3b513fc8c 100644
+--- a/README.md
++++ b/README.md
+@@ -163,6 +163,7 @@ This will output something similar to this:
+ | Razer Huntsman V3 Pro                                         |  1532:02A6  |
+ | Razer Huntsman V3 Pro TKL                                     |  1532:02A7  |
+ | Razer Huntsman V3 Pro Mini                                    |  1532:02B0  |
++| Razer Huntsman V3 X TKL                                       |  1532:02B1  |
+ | Razer Blade 14 (2024)                                         |  1532:02B6  |
+ | Razer Blade 18 (2024)                                         |  1532:02B8  |
+ | Razer BlackWidow V4 Mini HyperSpeed (Wired)                   |  1532:02B9  |
+diff --git a/daemon/openrazer_daemon/hardware/keyboards.py b/daemon/openrazer_daemon/hardware/keyboards.py
+index cdb5162cc..64860145b 100644
+--- a/daemon/openrazer_daemon/hardware/keyboards.py
++++ b/daemon/openrazer_daemon/hardware/keyboards.py
+@@ -33,7 +33,6 @@ def _close(self):
+         Close the key manager
+         """
+         super()._close()
+-
+         self.key_manager.close()
+ 
+ 
+@@ -2377,3 +2376,24 @@ def _close(self):
+         """
+         super()._close()
+         self.key_manager.close()
++
++
++class RazerHuntsmanV3XTKL(_RippleKeyboard):
++    """
++    Class for the Razer Huntsman V3 X TKL
++    """
++    EVENT_FILE_REGEX = re.compile(r'.*Razer_Huntsman_V3_X_Tenkeyless(-if01)?-event-kbd')
++
++    USB_VID = 0x1532
++    USB_PID = 0x02B1
++    HAS_MATRIX = True
++    WAVE_DIRS = (1, 2)
++    MATRIX_DIMS = [6, 18]
++    METHODS = ['get_device_type_keyboard', 'set_wave_effect', 'set_wheel_effect', 'set_static_effect', 'set_spectrum_effect',
++               'set_reactive_effect', 'set_none_effect', 'set_breath_random_effect', 'set_breath_single_effect', 'set_breath_dual_effect',
++               'set_custom_effect', 'set_key_row', 'get_game_mode', 'set_game_mode', 'get_macro_mode', 'set_macro_mode',
++               'get_macro_effect', 'set_macro_effect', 'get_macros', 'delete_macro', 'add_macro',
++               'set_starlight_random_effect', 'set_starlight_single_effect', 'set_starlight_dual_effect',
++               'set_ripple_effect', 'set_ripple_effect_random_colour']
++
++    DEVICE_IMAGE = 'https://assets.razerzone.com/eeimages/support_pages/2450/2450-huntsmanv3xtkl.png'
+diff --git a/driver/razerkbd_driver.c b/driver/razerkbd_driver.c
+index f06d5de65..5bc8a031b 100644
+--- a/driver/razerkbd_driver.c
++++ b/driver/razerkbd_driver.c
+@@ -360,6 +360,7 @@ static void razer_get_report_params(struct usb_device *usb_dev, uint *report_ind
+     case USB_DEVICE_ID_RAZER_BLACKWIDOW_V3_TK:
+     case USB_DEVICE_ID_RAZER_BLACKWIDOW_V3_PRO_WIRED:
+     case USB_DEVICE_ID_RAZER_BLACKWIDOW_V4_X:
++    case USB_DEVICE_ID_RAZER_HUNTSMAN_V3_X_TKL:
+     case USB_DEVICE_ID_RAZER_TARTARUS_PRO:
+         *report_index = 0x02;
+         *response_index = 0x02;
+@@ -533,6 +534,7 @@ static int razer_set_device_mode(struct razer_kbd_device *device, unsigned char
+     case USB_DEVICE_ID_RAZER_DEATHSTALKER_V2_PRO_WIRED:
+     case USB_DEVICE_ID_RAZER_BLACKWIDOW_V4:
+     case USB_DEVICE_ID_RAZER_BLACKWIDOW_V4_X:
++    case USB_DEVICE_ID_RAZER_HUNTSMAN_V3_X_TKL:
+     case USB_DEVICE_ID_RAZER_BLACKWIDOW_V4_PRO:
+     case USB_DEVICE_ID_RAZER_BLACKWIDOW_V4_75PCT:
+     case USB_DEVICE_ID_RAZER_DEATHSTALKER_V2_PRO_TKL_WIRED:
+@@ -935,6 +937,7 @@ static ssize_t razer_attr_write_game_led_state(struct device *dev, struct device
+     case USB_DEVICE_ID_RAZER_DEATHSTALKER_V2_PRO_WIRELESS:
+     case USB_DEVICE_ID_RAZER_DEATHSTALKER_V2_PRO_WIRED:
+     case USB_DEVICE_ID_RAZER_BLACKWIDOW_V4_X:
++    case USB_DEVICE_ID_RAZER_HUNTSMAN_V3_X_TKL:
+     case USB_DEVICE_ID_RAZER_ORNATA_V3_X:
+     case USB_DEVICE_ID_RAZER_DEATHSTALKER_V2:
+     case USB_DEVICE_ID_RAZER_DEATHSTALKER_V2_PRO_TKL_WIRELESS:
+@@ -1034,6 +1037,7 @@ static ssize_t razer_attr_read_game_led_state(struct device *dev, struct device_
+     case USB_DEVICE_ID_RAZER_DEATHSTALKER_V2_PRO_WIRELESS:
+     case USB_DEVICE_ID_RAZER_DEATHSTALKER_V2_PRO_WIRED:
+     case USB_DEVICE_ID_RAZER_BLACKWIDOW_V4_X:
++    case USB_DEVICE_ID_RAZER_HUNTSMAN_V3_X_TKL:
+     case USB_DEVICE_ID_RAZER_ORNATA_V3_X:
+     case USB_DEVICE_ID_RAZER_DEATHSTALKER_V2:
+     case USB_DEVICE_ID_RAZER_DEATHSTALKER_V2_PRO_TKL_WIRELESS:
+@@ -1621,6 +1625,10 @@ static ssize_t razer_attr_read_device_type(struct device *dev, struct device_att
+         device_type = "Razer BlackWidow V4 X";
+         break;
+ 
++    case USB_DEVICE_ID_RAZER_HUNTSMAN_V3_X_TKL:
++        device_type = "Razer Huntsman V3 X TKL";
++        break;
++
+     case USB_DEVICE_ID_RAZER_BLACKWIDOW_V4_PRO:
+         device_type = "Razer BlackWidow V4 Pro";
+         break;
+@@ -1735,6 +1743,7 @@ static ssize_t razer_attr_write_macro_led_effect(struct device *dev, struct devi
+     case USB_DEVICE_ID_RAZER_BLACKWIDOW_V4_MINI_HYPERSPEED_WIRED:
+     case USB_DEVICE_ID_RAZER_BLACKWIDOW_V4:
+     case USB_DEVICE_ID_RAZER_BLACKWIDOW_V4_X:
++    case USB_DEVICE_ID_RAZER_HUNTSMAN_V3_X_TKL:
+     case USB_DEVICE_ID_RAZER_BLACKWIDOW_V4_PRO:
+     case USB_DEVICE_ID_RAZER_BLACKWIDOW_V4_75PCT:
+     case USB_DEVICE_ID_RAZER_ORNATA_V3:
+@@ -2244,6 +2253,7 @@ static ssize_t razer_attr_write_matrix_effect_none(struct device *dev, struct de
+     case USB_DEVICE_ID_RAZER_BLACKWIDOW_V4_MINI_HYPERSPEED_WIRED:
+     case USB_DEVICE_ID_RAZER_BLACKWIDOW_V4:
+     case USB_DEVICE_ID_RAZER_BLACKWIDOW_V4_X:
++    case USB_DEVICE_ID_RAZER_HUNTSMAN_V3_X_TKL:
+     case USB_DEVICE_ID_RAZER_BLACKWIDOW_V4_PRO:
+     case USB_DEVICE_ID_RAZER_BLACKWIDOW_V4_75PCT:
+     case USB_DEVICE_ID_RAZER_HUNTSMAN_V3_PRO:
+@@ -2418,6 +2428,7 @@ static ssize_t razer_attr_write_matrix_effect_wave(struct device *dev, struct de
+     case USB_DEVICE_ID_RAZER_BLACKWIDOW_V4_MINI_HYPERSPEED_WIRED:
+     case USB_DEVICE_ID_RAZER_BLACKWIDOW_V4:
+     case USB_DEVICE_ID_RAZER_BLACKWIDOW_V4_X:
++    case USB_DEVICE_ID_RAZER_HUNTSMAN_V3_X_TKL:
+     case USB_DEVICE_ID_RAZER_BLACKWIDOW_V4_PRO:
+     case USB_DEVICE_ID_RAZER_BLACKWIDOW_V4_75PCT:
+     case USB_DEVICE_ID_RAZER_HUNTSMAN_V3_PRO:
+@@ -2521,6 +2532,7 @@ static ssize_t razer_attr_write_matrix_effect_wheel(struct device *dev, struct d
+     switch(device->usb_pid) {
+     case USB_DEVICE_ID_RAZER_BLACKWIDOW_V4:
+     case USB_DEVICE_ID_RAZER_BLACKWIDOW_V4_X:
++    case USB_DEVICE_ID_RAZER_HUNTSMAN_V3_X_TKL:
+     case USB_DEVICE_ID_RAZER_BLACKWIDOW_V4_PRO:
+     case USB_DEVICE_ID_RAZER_BLACKWIDOW_V4_75PCT:
+         request = razer_chroma_extended_matrix_effect_wheel(VARSTORE, BACKLIGHT_LED, direction);
+@@ -2590,6 +2602,7 @@ static ssize_t razer_attr_write_matrix_effect_spectrum(struct device *dev, struc
+     case USB_DEVICE_ID_RAZER_BLADE_15_BASE_2022:
+     case USB_DEVICE_ID_RAZER_BLACKWIDOW_V4:
+     case USB_DEVICE_ID_RAZER_BLACKWIDOW_V4_X:
++    case USB_DEVICE_ID_RAZER_HUNTSMAN_V3_X_TKL:
+     case USB_DEVICE_ID_RAZER_BLACKWIDOW_V4_PRO:
+     case USB_DEVICE_ID_RAZER_BLACKWIDOW_V4_75PCT:
+     case USB_DEVICE_ID_RAZER_HUNTSMAN_V3_PRO:
+@@ -2738,6 +2751,7 @@ static ssize_t razer_attr_write_matrix_effect_reactive(struct device *dev, struc
+     case USB_DEVICE_ID_RAZER_BLACKWIDOW_V3_TK:
+     case USB_DEVICE_ID_RAZER_BLACKWIDOW_V3_PRO_WIRED:
+     case USB_DEVICE_ID_RAZER_BLACKWIDOW_V4_X:
++    case USB_DEVICE_ID_RAZER_HUNTSMAN_V3_X_TKL:
+     case USB_DEVICE_ID_RAZER_DEATHSTALKER_V2:
+     case USB_DEVICE_ID_RAZER_DEATHSTALKER_V2_PRO_WIRED:
+     case USB_DEVICE_ID_RAZER_DEATHSTALKER_V2_PRO_TKL_WIRED:
+@@ -2989,6 +3003,7 @@ static ssize_t razer_attr_write_matrix_effect_static(struct device *dev, struct
+     case USB_DEVICE_ID_RAZER_BLACKWIDOW_V3_TK:
+     case USB_DEVICE_ID_RAZER_BLACKWIDOW_V3_PRO_WIRED:
+     case USB_DEVICE_ID_RAZER_BLACKWIDOW_V4_X:
++    case USB_DEVICE_ID_RAZER_HUNTSMAN_V3_X_TKL:
+     case USB_DEVICE_ID_RAZER_DEATHSTALKER_V2:
+     case USB_DEVICE_ID_RAZER_DEATHSTALKER_V2_PRO_WIRED:
+     case USB_DEVICE_ID_RAZER_DEATHSTALKER_V2_PRO_TKL_WIRED:
+@@ -3165,6 +3180,7 @@ static ssize_t razer_attr_write_matrix_effect_starlight(struct device *dev, stru
+     case USB_DEVICE_ID_RAZER_BLACKWIDOW_V4_MINI_HYPERSPEED_WIRED:
+     case USB_DEVICE_ID_RAZER_BLACKWIDOW_V4:
+     case USB_DEVICE_ID_RAZER_BLACKWIDOW_V4_X:
++    case USB_DEVICE_ID_RAZER_HUNTSMAN_V3_X_TKL:
+     case USB_DEVICE_ID_RAZER_BLACKWIDOW_V4_PRO:
+     case USB_DEVICE_ID_RAZER_BLACKWIDOW_V4_75PCT:
+     case USB_DEVICE_ID_RAZER_HUNTSMAN_V3_PRO:
+@@ -3467,6 +3483,7 @@ static ssize_t razer_attr_write_matrix_effect_breath(struct device *dev, struct
+     case USB_DEVICE_ID_RAZER_BLACKWIDOW_V4_MINI_HYPERSPEED_WIRED:
+     case USB_DEVICE_ID_RAZER_BLACKWIDOW_V4:
+     case USB_DEVICE_ID_RAZER_BLACKWIDOW_V4_X:
++    case USB_DEVICE_ID_RAZER_HUNTSMAN_V3_X_TKL:
+     case USB_DEVICE_ID_RAZER_BLACKWIDOW_V4_PRO:
+     case USB_DEVICE_ID_RAZER_BLACKWIDOW_V4_75PCT:
+     case USB_DEVICE_ID_RAZER_HUNTSMAN_V3_PRO:
+@@ -3768,6 +3785,7 @@ static ssize_t razer_attr_write_matrix_effect_custom(struct device *dev, struct
+     case USB_DEVICE_ID_RAZER_BLACKWIDOW_V3_MINI_HYPERSPEED_WIRED:
+     case USB_DEVICE_ID_RAZER_BLACKWIDOW_V4_MINI_HYPERSPEED_WIRED:
+     case USB_DEVICE_ID_RAZER_BLACKWIDOW_V4_X:
++    case USB_DEVICE_ID_RAZER_HUNTSMAN_V3_X_TKL:
+     case USB_DEVICE_ID_RAZER_HUNTSMAN_V3_PRO:
+     case USB_DEVICE_ID_RAZER_HUNTSMAN_V3_PRO_TKL:
+     case USB_DEVICE_ID_RAZER_HUNTSMAN_V3_PRO_MINI:
+@@ -3990,6 +4008,7 @@ static ssize_t razer_attr_write_matrix_brightness(struct device *dev, struct dev
+     case USB_DEVICE_ID_RAZER_BLACKWIDOW_V4_MINI_HYPERSPEED_WIRED:
+     case USB_DEVICE_ID_RAZER_BLACKWIDOW_V4:
+     case USB_DEVICE_ID_RAZER_BLACKWIDOW_V4_X:
++    case USB_DEVICE_ID_RAZER_HUNTSMAN_V3_X_TKL:
+     case USB_DEVICE_ID_RAZER_BLACKWIDOW_V4_PRO:
+     case USB_DEVICE_ID_RAZER_BLACKWIDOW_V4_75PCT:
+     case USB_DEVICE_ID_RAZER_HUNTSMAN_V3_PRO:
+@@ -4162,6 +4181,7 @@ static ssize_t razer_attr_read_matrix_brightness(struct device *dev, struct devi
+     case USB_DEVICE_ID_RAZER_BLACKWIDOW_V4_MINI_HYPERSPEED_WIRED:
+     case USB_DEVICE_ID_RAZER_BLACKWIDOW_V4:
+     case USB_DEVICE_ID_RAZER_BLACKWIDOW_V4_X:
++    case USB_DEVICE_ID_RAZER_HUNTSMAN_V3_X_TKL:
+     case USB_DEVICE_ID_RAZER_BLACKWIDOW_V4_PRO:
+     case USB_DEVICE_ID_RAZER_BLACKWIDOW_V4_75PCT:
+     case USB_DEVICE_ID_RAZER_BLACKWIDOW_V4_TENKEYLESS_HYPERSPEED_WIRED:
+@@ -4422,6 +4442,7 @@ static ssize_t razer_attr_write_matrix_custom_frame(struct device *dev, struct d
+         case USB_DEVICE_ID_RAZER_HUNTSMAN_V2_ANALOG:
+         case USB_DEVICE_ID_RAZER_HUNTSMAN_MINI_ANALOG:
+         case USB_DEVICE_ID_RAZER_BLACKWIDOW_V4_X:
++        case USB_DEVICE_ID_RAZER_HUNTSMAN_V3_X_TKL:
+         case USB_DEVICE_ID_RAZER_HUNTSMAN_V3_PRO:
+         case USB_DEVICE_ID_RAZER_HUNTSMAN_V3_PRO_TKL:
+         case USB_DEVICE_ID_RAZER_HUNTSMAN_V3_PRO_MINI:
+@@ -4845,6 +4866,7 @@ static int razer_event(struct hid_device *hdev, struct hid_field *field, struct
+     case USB_DEVICE_ID_RAZER_BLACKWIDOW_V3_PRO_WIRELESS:
+     case USB_DEVICE_ID_RAZER_BLACKWIDOW_V4:
+     case USB_DEVICE_ID_RAZER_BLACKWIDOW_V4_X:
++    case USB_DEVICE_ID_RAZER_HUNTSMAN_V3_X_TKL:
+     case USB_DEVICE_ID_RAZER_BLACKWIDOW_V4_PRO:
+     case USB_DEVICE_ID_RAZER_HUNTSMAN_V2:
+     case USB_DEVICE_ID_RAZER_DEATHSTALKER_V2:
+@@ -5193,6 +5215,7 @@ static int razer_raw_event(struct hid_device *hdev, struct hid_report *report, u
+     case USB_DEVICE_ID_RAZER_BLACKWIDOW_V3:
+     case USB_DEVICE_ID_RAZER_BLACKWIDOW_V4:
+     case USB_DEVICE_ID_RAZER_BLACKWIDOW_V4_X:
++    case USB_DEVICE_ID_RAZER_HUNTSMAN_V3_X_TKL:
+     case USB_DEVICE_ID_RAZER_BLACKWIDOW_V4_PRO:
+     case USB_DEVICE_ID_RAZER_BLACKWIDOW_V4_75PCT:
+     case USB_DEVICE_ID_RAZER_ORNATA_V2:
+@@ -5226,6 +5249,7 @@ static int razer_kbd_input_mapping(struct hid_device *hdev, struct hid_input *hi
+     case USB_DEVICE_ID_RAZER_BLACKWIDOW_V3_PRO_WIRELESS:
+     case USB_DEVICE_ID_RAZER_BLACKWIDOW_V4:
+     case USB_DEVICE_ID_RAZER_BLACKWIDOW_V4_X:
++    case USB_DEVICE_ID_RAZER_HUNTSMAN_V3_X_TKL:
+     case USB_DEVICE_ID_RAZER_BLACKWIDOW_V4_PRO:
+     case USB_DEVICE_ID_RAZER_BLACKWIDOW_V4_75PCT:
+     case USB_DEVICE_ID_RAZER_BLACKWIDOW_ELITE:
+@@ -5517,6 +5541,7 @@ static int razer_kbd_probe(struct hid_device *hdev, const struct hid_device_id *
+             break;
+ 
+         case USB_DEVICE_ID_RAZER_BLACKWIDOW_V4_X:
++        case USB_DEVICE_ID_RAZER_HUNTSMAN_V3_X_TKL:
+             CREATE_DEVICE_FILE(&hdev->dev, &dev_attr_matrix_effect_wheel);           // Wheel effect
+             CREATE_DEVICE_FILE(&hdev->dev, &dev_attr_matrix_effect_wave);            // Wave effect
+             CREATE_DEVICE_FILE(&hdev->dev, &dev_attr_matrix_effect_spectrum);        // Spectrum effect
+@@ -6064,6 +6089,7 @@ static void razer_kbd_disconnect(struct hid_device *hdev)
+             break;
+ 
+         case USB_DEVICE_ID_RAZER_BLACKWIDOW_V4_X:
++        case USB_DEVICE_ID_RAZER_HUNTSMAN_V3_X_TKL:
+             device_remove_file(&hdev->dev, &dev_attr_matrix_effect_wheel);           // Wheel effect
+             device_remove_file(&hdev->dev, &dev_attr_matrix_effect_wave);            // Wave effect
+             device_remove_file(&hdev->dev, &dev_attr_matrix_effect_spectrum);        // Spectrum effect
+@@ -6494,6 +6520,7 @@ static const struct hid_device_id razer_devices[] = {
+     { HID_USB_DEVICE(USB_VENDOR_ID_RAZER,USB_DEVICE_ID_RAZER_BLADE_18_2023) },
+     { HID_USB_DEVICE(USB_VENDOR_ID_RAZER,USB_DEVICE_ID_RAZER_HUNTSMAN_V3_PRO) },
+     { HID_USB_DEVICE(USB_VENDOR_ID_RAZER,USB_DEVICE_ID_RAZER_HUNTSMAN_V3_PRO_TKL) },
++    { HID_USB_DEVICE(USB_VENDOR_ID_RAZER,USB_DEVICE_ID_RAZER_HUNTSMAN_V3_X_TKL) },
+     { HID_USB_DEVICE(USB_VENDOR_ID_RAZER,USB_DEVICE_ID_RAZER_HUNTSMAN_V3_PRO_MINI) },
+     { HID_USB_DEVICE(USB_VENDOR_ID_RAZER,USB_DEVICE_ID_RAZER_HUNTSMAN_V3_PRO_8KHZ) },
+     { HID_USB_DEVICE(USB_VENDOR_ID_RAZER,USB_DEVICE_ID_RAZER_BLADE_18_2024) },
+diff --git a/driver/razerkbd_driver.h b/driver/razerkbd_driver.h
+index 9518d50e2..a1903de26 100644
+--- a/driver/razerkbd_driver.h
++++ b/driver/razerkbd_driver.h
+@@ -116,6 +116,7 @@
+ #define USB_DEVICE_ID_RAZER_HUNTSMAN_V3_PRO 0x02A6
+ #define USB_DEVICE_ID_RAZER_HUNTSMAN_V3_PRO_TKL 0x02A7
+ #define USB_DEVICE_ID_RAZER_HUNTSMAN_V3_PRO_MINI 0x02B0
++#define USB_DEVICE_ID_RAZER_HUNTSMAN_V3_X_TKL 0x02B1
+ #define USB_DEVICE_ID_RAZER_BLADE_14_2024 0x02B6
+ #define USB_DEVICE_ID_RAZER_BLADE_18_2024 0x02B8
+ #define USB_DEVICE_ID_RAZER_BLACKWIDOW_V4_MINI_HYPERSPEED_WIRED 0x02B9
+diff --git a/install_files/udev/99-razer.rules b/install_files/udev/99-razer.rules
+index ca66a2049..adf1581eb 100644
+--- a/install_files/udev/99-razer.rules
++++ b/install_files/udev/99-razer.rules
+@@ -10,7 +10,7 @@ ATTRS{idProduct}=="0013|0015|0016|001f|0020|0024|0025|0029|002e|002f|0032|0034|0
+     ENV{ID_RAZER_CHROMA}="1", ENV{RAZER_DRIVER}="razermouse"
+ 
+ # Keyboards
+-ATTRS{idProduct}=="010d|010e|010f|0111|0113|0118|011a|011b|011c|0201|0202|0203|0204|0205|0207|0208|0209|020f|0210|0211|0214|0216|0217|021a|021e|021f|0220|0221|0224|0225|0226|0227|0228|022a|022b|022c|022d|022f|0232|0233|0234|0235|0237|0239|023a|023b|023f|0240|0241|0243|0244|0245|0246|024a|024b|024c|024d|024e|0252|0253|0255|0256|0257|0258|0259|025a|025c|025d|025e|0266|0268|0269|026a|026b|026c|026d|026e|026f|0270|0271|0276|0279|027a|0282|0287|028a|028b|028c|028d|028f|0290|0292|0293|0294|0295|0296|0298|029d|029e|029f|02a0|02a1|02a2|02a3|02a5|02a6|02a7|02b0|02b6|02b8|02b9|02ba|02c5|02c6|02c7|02cf|02d5|02d7|0a24", \
++ATTRS{idProduct}=="010d|010e|010f|0111|0113|0118|011a|011b|011c|0201|0202|0203|0204|0205|0207|0208|0209|020f|0210|0211|0214|0216|0217|021a|021e|021f|0220|0221|0224|0225|0226|0227|0228|022a|022b|022c|022d|022f|0232|0233|0234|0235|0237|0239|023a|023b|023f|0240|0241|0243|0244|0245|0246|024a|024b|024c|024d|024e|0252|0253|0255|0256|0257|0258|0259|025a|025c|025d|025e|0266|0268|0269|026a|026b|026c|026d|026e|026f|0270|0271|0276|0279|027a|0282|0287|028a|028b|028c|028d|028f|0290|0292|0293|0294|0295|0296|0298|029d|029e|029f|02a0|02a1|02a2|02a3|02a5|02a6|02a7|02b0|02b1|02b6|02b8|02b9|02ba|02c5|02c6|02c7|02cf|02d5|02d7|0a24", \
+     ATTRS{idVendor}=="1532", \
+     ENV{ID_RAZER_CHROMA}="1", ENV{RAZER_DRIVER}="razerkbd"
+ 
+diff --git a/pylib/openrazer/_fake_driver/razerhuntsmanv3xtkl.cfg b/pylib/openrazer/_fake_driver/razerhuntsmanv3xtkl.cfg
+new file mode 100644
+index 000000000..5935b9f68
+--- /dev/null
++++ b/pylib/openrazer/_fake_driver/razerhuntsmanv3xtkl.cfg
+@@ -0,0 +1,25 @@
++# DO NOT EDIT THIS FILE!
++# You can regenerate all fake driver files with ./scripts/generate_all_fake_drivers.sh -f
++[device]
++dir_name = 0003:1532:02B1.0001
++name = Razer Huntsman V3 X TKL
++files = rw,device_mode,0x0000
++        r,device_serial,XX00000002B1
++        r,device_type,%(name)s
++        r,firmware_version,v1.0
++        rw,game_led_state,0
++        r,kbd_layout,01
++        rw,macro_led_effect,0
++        rw,macro_led_state,0
++        rw,matrix_brightness,0
++        w,matrix_custom_frame
++        w,matrix_effect_breath
++        w,matrix_effect_custom
++        w,matrix_effect_none
++        w,matrix_effect_reactive
++        w,matrix_effect_spectrum
++        w,matrix_effect_starlight
++        w,matrix_effect_static
++        w,matrix_effect_wave
++        w,matrix_effect_wheel
++        r,version,1.0.0

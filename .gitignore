@@ -3,11 +3,6 @@
 /pkg/
 /openrazer/
 
-# Downloaded patch sources declared by PKGBUILD
-/huntsman-v3-x-tkl.patch
-/huntsman-v3-x-tkl-daemon.patch
-/huntsman-v3-x-tkl-cleanup.patch
-
 # Built Arch packages and editor swap files
 /*.pkg.tar*
 /*.kate-swp

@@ -12,9 +12,9 @@ url=https://openrazer.github.io
 license=('GPL-2.0-or-later')
 makedepends=('git' 'python-setuptools')
 source=("git+https://github.com/openrazer/openrazer.git"
-        "huntsman-v3-x-tkl.patch::https://github.com/alex-PT78/openrazer/commit/e6ba767751191c05129fe89971ca3f4ed6b82d53.patch"
-        "huntsman-v3-x-tkl-daemon.patch::https://github.com/alex-PT78/openrazer/commit/21ca5f9cf3056fb8a323cf1b10b8f0e65af685b3.patch"
-        "huntsman-v3-x-tkl-cleanup.patch::https://github.com/alex-PT78/openrazer/commit/d2c073a168741054cb09f6c8231b3d851ae0180b.patch"
+        'huntsman-v3-x-tkl.patch'
+        'huntsman-v3-x-tkl-daemon.patch'
+        'huntsman-v3-x-tkl-cleanup.patch'
         'clang-kernel-build.patch')
 sha256sums=('SKIP'
             '52760b8ae1bd355ca7cb5db115ea84d24d6a73ac5209dff6827b74e008ad5f7a'

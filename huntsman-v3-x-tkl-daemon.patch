@@ -1,0 +1,27 @@
+From 21ca5f9cf3056fb8a323cf1b10b8f0e65af685b3 Mon Sep 17 00:00:00 2001
+From: alex-PT78 <alex@example.com>
+Date: Sat, 12 Sep 2026 23:41:57 +0100
+Subject: [PATCH] daemon: Disable driver mode for Huntsman V3 X TKL
+
+Driver mode (0x03,0x00) freezes input (Enter stops working until
+replug). Keep DRIVER_MODE=False like other Huntsman V3 until
+kernel driver-mode support is proven.
+---
+ daemon/openrazer_daemon/hardware/keyboards.py | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/daemon/openrazer_daemon/hardware/keyboards.py b/daemon/openrazer_daemon/hardware/keyboards.py
+index 64860145b..f0cacc3e9 100644
+--- a/daemon/openrazer_daemon/hardware/keyboards.py
++++ b/daemon/openrazer_daemon/hardware/keyboards.py
+@@ -2387,6 +2387,10 @@ class RazerHuntsmanV3XTKL(_RippleKeyboard):
+     USB_VID = 0x1532
+     USB_PID = 0x02B1
+     HAS_MATRIX = True
++    # Driver mode (0x03,0x00) freezes input on this device (Enter stops
++    # working until replug), same as other Huntsman V3 which stay in
++    # device mode. Keep False until kernel driver-mode support is proven.
++    DRIVER_MODE = False
+     WAVE_DIRS = (1, 2)
+     MATRIX_DIMS = [6, 18]
+     METHODS = ['get_device_type_keyboard', 'set_wave_effect', 'set_wheel_effect', 'set_static_effect', 'set_spectrum_effect',
