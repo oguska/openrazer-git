@@ -5,13 +5,13 @@ pkgname=('openrazer-daemon-git' 'openrazer-driver-dkms-git' 'openrazer-meta-git'
 pkgbase=openrazer-git
 _pkgbase=openrazer
 pkgver=3.12.1.r56.g477f4d6d
-pkgrel=1
+pkgrel=2
 pkgdesc='Community-led effort to support Razer peripherals on Linux (git version)'
 arch=('any')
 url=https://openrazer.github.io
 license=('GPL-2.0-or-later')
 makedepends=('git' 'python-setuptools')
-source=("git+https://github.com/openrazer/openrazer.git"
+source=("git+https://github.com/openrazer/openrazer.git#commit=477f4d6d3ab7e9deb6310d5bd3742560c5cbe80d"
         'huntsman-v3-x-tkl.patch'
         'huntsman-v3-x-tkl-daemon.patch'
         'huntsman-v3-x-tkl-cleanup.patch'
