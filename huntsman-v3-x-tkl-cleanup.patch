@@ -1,7 +1,7 @@
-From d2c073a168741054cb09f6c8231b3d851ae0180b Mon Sep 17 00:00:00 2001
+From a0f73491253845d083e172af170138fba4ed07c4 Mon Sep 17 00:00:00 2001
 From: alex-PT78 <alex@example.com>
 Date: Sat, 12 Sep 2026 23:48:19 +0100
-Subject: [PATCH] daemon: Restore blank line in _MacroKeyboard._close
+Subject: [PATCH 3/3] daemon: Restore blank line in _MacroKeyboard._close
 
 Remove unrelated whitespace churn from Huntsman V3 X TKL support.
 ---
@@ -9,10 +9,10 @@ Remove unrelated whitespace churn from Huntsman V3 X TKL support.
  1 file changed, 1 insertion(+)
 
 diff --git a/daemon/openrazer_daemon/hardware/keyboards.py b/daemon/openrazer_daemon/hardware/keyboards.py
-index f0cacc3e9..de438d42d 100644
+index 4343bef3..f08e982d 100644
 --- a/daemon/openrazer_daemon/hardware/keyboards.py
 +++ b/daemon/openrazer_daemon/hardware/keyboards.py
-@@ -33,6 +33,7 @@ def _close(self):
+@@ -33,6 +33,7 @@ class _MacroKeyboard(_RazerDeviceBrightnessSuspend):
          Close the key manager
          """
          super()._close()
